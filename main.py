@@ -1,9 +1,10 @@
 from fastapi import FastAPI, UploadFile, File, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
-import random
 from database import init_db, log_prediction, get_all_predictions
+from model import load_model, run_inference
 
 app = FastAPI()
+
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
@@ -16,10 +17,13 @@ app.add_middleware(
 @app.on_event("startup")
 def startup():
     init_db()
+    load_model()
+
 
 @app.get("/")
 def home():
     return {"message": "Cyclone backend is running"}
+
 
 @app.post("/predict")
 async def predict(file: UploadFile = File(...)):
@@ -30,20 +34,17 @@ async def predict(file: UploadFile = File(...)):
     if len(contents) > 5 * 1024 * 1024:
         raise HTTPException(status_code=400, detail="Image too large (max 5MB)")
 
-    
-    # FAKE data for now — Person 2's real model will replace this later
-    categories = ["Depression", "Category 1", "Category 2", "Category 3", "Category 4", "Category 5"]
-    fake_category = random.choice(categories)
-    fake_confidence = round(random.uniform(0.70, 0.99), 2)
+    category, confidence = run_inference(contents)
 
-    log_prediction(file.filename, fake_category, fake_confidence)
+    log_prediction(file.filename, category, confidence)
 
     return {
         "filename": file.filename,
         "cyclone_detected": True,
-        "category": fake_category,
-        "confidence": fake_confidence
+        "category": category,
+        "confidence": confidence
     }
+
 
 @app.get("/history")
 def history():
