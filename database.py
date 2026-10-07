@@ -10,20 +10,18 @@ def init_db():
         CREATE TABLE IF NOT EXISTS predictions (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             timestamp TEXT,
-            filename TEXT,
-            category TEXT,
-            confidence REAL
+            filename TEXT
         )
     """)
     conn.commit()
     conn.close()
 
-def log_prediction(filename, category, confidence):
+def log_prediction(filename):
     conn = sqlite3.connect(DB_NAME)
     cursor = conn.cursor()
     cursor.execute(
-        "INSERT INTO predictions (timestamp, filename, category, confidence) VALUES (?, ?, ?, ?)",
-        (datetime.now().isoformat(), filename, category, confidence)
+        "INSERT INTO predictions (timestamp, filename) VALUES (?, ?)",
+        (datetime.now().isoformat(), filename)
     )
     conn.commit()
     conn.close()
