@@ -1,8 +1,14 @@
 from fastapi import FastAPI, UploadFile, File, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from database import init_db, log_prediction, get_all_predictions
+from inference import load_cyclone_model, predict_cyclone_path
+from pydantic import BaseModel
 
 app = FastAPI()
+lstm_model = None
+lstm_checkpoint = None
+class PathRequest(BaseModel):
+    readings: list[list[float]]
 
 app.add_middleware(
     CORSMiddleware,
@@ -12,10 +18,11 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-
 @app.on_event("startup")
 def startup():
     init_db()
+    global lstm_model, lstm_checkpoint
+    lstm_model, lstm_checkpoint = load_cyclone_model("best_lstm_early.pt")
 
 
 @app.get("/")
@@ -39,7 +46,13 @@ async def predict(file: UploadFile = File(...)):
         "cyclone_detected": True,
         "message": "Cyclone Detected"
     }
-
+@app.post("/predict-path")
+async def predict_path(request: PathRequest):
+    try:
+        predictions = predict_cyclone_path(lstm_model, lstm_checkpoint, request.readings)
+        return {"predictions": predictions}
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
 
 @app.get("/history")
 def history():
